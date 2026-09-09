@@ -1,0 +1,72 @@
+# Python & Virtual Environments
+.venv/
+backend/.venv/
+**/.venv/
+env/
+venv/
+ENV/
+*.pyc
+*.py[cod]
+*$py.class
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+**/.pytest_cache/
+.coverage
+htmlcov/
+.cache/
+**/.cache/
+
+# Node & Frontend
+node_modules/
+frontend/node_modules/
+**/node_modules/
+dist/
+frontend/dist/
+**/dist/
+.vite/
+**/.vite/
+logs/
+*.log
+**/*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment Variables & Secrets
+.env
+*.env
+**/.env
+**/*.env
+.env.*
+**/.env.*
+!.env.example
+!*.env.example
+!**/.env.example
+!**/backend/.env.example
+backend/.env
+frontend/.env
+
+# Credentials & Certificate Files
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+
+# IDE & OS Local Files
+.vscode/
+**/.vscode/
+.idea/
+**/.idea/
+.DS_Store
+**/.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Scratch & Temporary Analysis
+scratch/
+tmp/
+**/tmp/

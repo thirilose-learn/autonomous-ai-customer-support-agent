@@ -1,0 +1,204 @@
+{
+  "timestamp": "2026-09-06T07:17:41.606577+00:00",
+  "datasets": {
+    "customers": {
+      "raw_rows": 99441,
+      "processed_rows": 99441,
+      "columns": [
+        "customer_id",
+        "customer_unique_id",
+        "customer_zip_code_prefix",
+        "customer_city",
+        "customer_state"
+      ],
+      "unique_customer_ids": 99441,
+      "unique_customer_unique_ids": 96096,
+      "null_counts": {}
+    },
+    "orders": {
+      "raw_rows": 99441,
+      "processed_rows": 99441,
+      "columns": [
+        "order_id",
+        "customer_id",
+        "customer_unique_id",
+        "order_status",
+        "order_purchase_timestamp",
+        "order_approved_at",
+        "order_delivered_carrier_date",
+        "order_delivered_customer_date",
+        "order_estimated_delivery_date"
+      ],
+      "unique_order_ids": 99441,
+      "missing_customer_fk": 0,
+      "order_status_distribution": {
+        "delivered": 96478,
+        "invoiced": 314,
+        "shipped": 1107,
+        "processing": 301,
+        "unavailable": 609,
+        "canceled": 625,
+        "created": 5,
+        "approved": 2
+      },
+      "null_counts": {
+        "order_delivered_carrier_date": 1783,
+        "order_delivered_customer_date": 2965,
+        "order_approved_at": 160
+      }
+    },
+    "products": {
+      "raw_rows": 32951,
+      "processed_rows": 32951,
+      "columns": [
+        "product_id",
+        "product_category_name",
+        "product_category_name_english",
+        "product_name_lenght",
+        "product_description_lenght",
+        "product_photos_qty",
+        "product_weight_g",
+        "product_length_cm",
+        "product_height_cm",
+        "product_width_cm"
+      ],
+      "unique_product_ids": 32951,
+      "null_counts": {
+        "product_name_lenght": 610,
+        "product_description_lenght": 610,
+        "product_photos_qty": 610,
+        "product_category_name": 610,
+        "product_category_name_english": 610,
+        "product_weight_g": 2,
+        "product_length_cm": 2,
+        "product_height_cm": 2,
+        "product_width_cm": 2
+      },
+      "translation_categories_count": 73
+    },
+    "order_items": {
+      "raw_rows": 112650,
+      "processed_rows": 112650,
+      "columns": [
+        "order_id",
+        "order_item_id",
+        "product_id",
+        "seller_id",
+        "shipping_limit_date",
+        "price",
+        "freight_value"
+      ],
+      "missing_order_fk": 0,
+      "missing_product_fk": 0,
+      "null_counts": {}
+    },
+    "order_payments": {
+      "raw_rows": 103886,
+      "processed_rows": 103886,
+      "columns": [
+        "order_id",
+        "payment_sequential",
+        "payment_type",
+        "payment_installments",
+        "payment_value"
+      ],
+      "missing_order_fk": 0,
+      "payment_type_distribution": {
+        "credit_card": 76795,
+        "boleto": 19784,
+        "voucher": 5775,
+        "debit_card": 1529,
+        "not_defined": 3
+      },
+      "null_counts": {}
+    },
+    "bitext": {
+      "raw_rows": 26872,
+      "processed_rows": 26872,
+      "columns": [
+        "flags",
+        "instruction",
+        "category",
+        "intent",
+        "response"
+      ],
+      "categories_count": 11,
+      "intents_count": 27,
+      "category_distribution": {
+        "ORDER": 3988,
+        "SHIPPING": 1970,
+        "CANCEL": 950,
+        "INVOICE": 1999,
+        "PAYMENT": 1998,
+        "REFUND": 2992,
+        "FEEDBACK": 1997,
+        "CONTACT": 1999,
+        "ACCOUNT": 5986,
+        "DELIVERY": 1994,
+        "SUBSCRIPTION": 999
+      },
+      "intent_distribution": {
+        "cancel_order": 998,
+        "change_order": 997,
+        "change_shipping_address": 973,
+        "check_cancellation_fee": 950,
+        "check_invoice": 1000,
+        "check_payment_methods": 999,
+        "check_refund_policy": 997,
+        "complaint": 1000,
+        "contact_customer_service": 1000,
+        "contact_human_agent": 999,
+        "create_account": 997,
+        "delete_account": 995,
+        "delivery_options": 995,
+        "delivery_period": 999,
+        "edit_account": 1000,
+        "get_invoice": 999,
+        "get_refund": 997,
+        "newsletter_subscription": 999,
+        "payment_issue": 999,
+        "place_order": 998,
+        "recover_password": 995,
+        "registration_problems": 999,
+        "review": 997,
+        "set_up_shipping_address": 997,
+        "switch_account": 1000,
+        "track_order": 995,
+        "track_refund": 998
+      },
+      "null_counts": {}
+    }
+  },
+  "relational_integrity": {},
+  "demo_accounts_summary": {
+    "total_demo_customers": 25,
+    "unique_customer_unique_ids": 25,
+    "distribution_by_scenario": {
+      "VIP_REPEAT_BUYER_17_ORDERS": 1,
+      "HIGH_VOLUME_REPEAT_BUYER_9_ORDERS": 1,
+      "REPEAT_BUYER_7_ORDERS": 3,
+      "IN_TRANSIT_SHIPPED_ORDER": 2,
+      "CANCELED_ORDER_REFUND_INQUIRY": 2,
+      "UNAVAILABLE_ORDER_ESCALATION": 1,
+      "DELIVERED_MULTI_ITEM_ORDER_5_ITEMS": 1,
+      "SPLIT_PAYMENT_VOUCHER_AND_CREDIT": 1,
+      "DELIVERED_STANDARD_SP": 1,
+      "DELIVERED_STANDARD_RJ": 1,
+      "DELIVERED_STANDARD_MG": 1,
+      "DELIVERED_STANDARD_RS": 1,
+      "DELIVERED_STANDARD_PR": 1,
+      "DELIVERED_STANDARD_BA": 1,
+      "DELIVERED_STANDARD_SC": 1,
+      "DELIVERED_STANDARD_DF": 1,
+      "DELIVERED_STANDARD_GO": 1,
+      "DELIVERED_STANDARD_PE": 1,
+      "DELIVERED_STANDARD_CE": 1,
+      "DELIVERED_STANDARD_ES": 1,
+      "DELIVERED_STANDARD_MT": 1
+    },
+    "order_counts_range": [
+      1,
+      17
+    ]
+  }
+}
