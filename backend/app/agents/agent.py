@@ -72,7 +72,10 @@ def run_customer_agent_turn(
     active_messages = [system_msg] + history + [user_msg]
 
     # Check if this turn is providing contact info for a pending escalation / supervisor review
-    from app.services.escalation_policy import detect_pending_escalation_intent
+    from app.services.escalation_policy import (
+        detect_pending_escalation_intent,
+        get_previous_order_from_history,
+    )
     is_pending_esc, esc_email, esc_phone, esc_reason, esc_order_id = detect_pending_escalation_intent(
         history, user_message, customer=customer
     )
@@ -90,6 +93,33 @@ def run_customer_agent_turn(
                 )
             )
         )
+    elif esc_reason and (esc_email or esc_phone) and customer and getattr(customer, "total_orders", 0) > 1:
+        # Substantive issue + contact exist, but order context is unconfirmed/missing for multi-order customer
+        prev_oid = get_previous_order_from_history(history)
+        if prev_oid:
+            active_messages.append(
+                SystemMessage(
+                    content=(
+                        f"[ORDER CLARIFICATION DIRECTIVE]: The customer reported an order issue ('{esc_reason}') with contact info, "
+                        f"and an order ('{prev_oid}') was discussed previously in the conversation. "
+                        f"However, the customer has NOT confirmed whether this issue concerns that order or a different order. "
+                        f"You MUST NOT call `request_human_escalation` yet. "
+                        f"You MUST ask: 'Is this regarding the order we just discussed, or a different order? If it's a different order, please provide the order ID.' "
+                        f"Wait for the customer's answer."
+                    )
+                )
+            )
+        else:
+            active_messages.append(
+                SystemMessage(
+                    content=(
+                        "[ORDER CLARIFICATION DIRECTIVE]: The customer has multiple orders and has reported an order issue, "
+                        "but has not specified which order is affected. "
+                        "You MUST NOT call `request_human_escalation` yet. "
+                        "Ask the customer which order was affected by providing the order ID, approximate order date, or product/item name."
+                    )
+                )
+            )
 
     # 4. Initialize LLM with tool binding
     try:

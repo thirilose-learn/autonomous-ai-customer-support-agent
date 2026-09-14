@@ -43,10 +43,24 @@ def build_escalation_tools(customer: CustomerContext) -> List[BaseTool]:
             order_id: The specific order ID (e.g., 32-hex ID or reference) affected by this issue.
             product_name: The specific product name or category affected by this issue.
         """
-        # Backend-authoritative validation of reason and contact information
+        # Single-order customer auto-association if order_id is not specified
+        clean_order_id = order_id
+        if customer and getattr(customer, "total_orders", 0) <= 1 and not clean_order_id:
+            clean_order_id = getattr(customer, "sample_order_id", None)
+
+        # If order_id not explicitly passed, check if reason contains an explicit 32-hex order ID
+        if not clean_order_id and reason:
+            from app.services.escalation_policy import HEX_ORDER_ID_REGEX
+            reason_hex = HEX_ORDER_ID_REGEX.search(reason)
+            if reason_hex:
+                clean_order_id = reason_hex.group(1).lower()
+
+        # Backend-authoritative validation of reason, contact information, and order context
         is_ready, email, phone, validation_err = validate_escalation_readiness(
             reason=reason,
             contact_info=contact_info,
+            order_id=clean_order_id,
+            customer=customer,
         )
 
         if not is_ready:
@@ -54,6 +68,7 @@ def build_escalation_tools(customer: CustomerContext) -> List[BaseTool]:
                 f"Action Denied: {validation_err}\n"
                 f"Guidance: Do NOT claim that a ticket was created. Communicate the requirement to the customer politely."
             )
+        order_id = clean_order_id
 
         # Attach order_id to reason and conversation summary for human support context
         formatted_reason = reason.strip()

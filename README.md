@@ -7,20 +7,29 @@
 [![LangChain](https://img.shields.io/badge/LangChain-0.3+-green.svg)](https://www.langchain.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%2B%20pgvector-3ECF8E.svg)](https://supabase.com/)
 [![Groq](https://img.shields.io/badge/Groq-Cloud%20LLM%20Inference-F55036.svg)](https://groq.com/)
-[![License](https://img.shields.io/badge/License-Academic%20Capstone-lightgrey.svg)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An autonomous, context-aware AI customer support and resolution agent engineered for e-commerce platforms. The system combines structured relational business data retrieval, semantic policy retrieval-augmented generation (RAG), voice-to-text input (Whisper), strict cross-customer data isolation, and an intelligent human supervisor escalation workflow with automated ticket creation.
+An autonomous, context-aware AI customer support and resolution application built for e-commerce platforms. The system combines structured relational business data retrieval, semantic policy retrieval-augmented generation (RAG), speech-to-text input (Whisper), strict cross-customer data isolation, and an intelligent human supervisor escalation workflow with automated ticket creation.
+
+---
+
+## Screenshots
+
+| Main Interface | Order & Product Inquiry | Human Escalation |
+| :---: | :---: | :---: |
+| ![Main Interface](screenshots/01-main-interface.png) | ![Order & Product Inquiry](screenshots/02-order-and-product-inquiry.png) | ![Human Escalation](screenshots/03-human-escalation.png) |
+| *Customer persona selection, quick inquiry pills, and responsive chat interface* | *Structured order items, English product category, pricing, and freight retrieval* | *Substantive issue review, multi-order disambiguation, and real support ticket creation* |
 
 ---
 
 ## 1. Problem Statement & Business Context
 
-Traditional e-commerce support teams are overwhelmed by high volumes of repetitive inquiries regarding order status, delivery timelines, product specifications, returns, refunds, payment methods, and store policies. Generic AI chatbots fail in this domain because:
-1. **Lack of Business Grounding:** They hallucinate orders, items, tracking timelines, or return windows without querying real operational databases.
-2. **Security & Privacy Risks:** Poorly architected systems risk leaking Customer A's private purchase history to Customer B.
+Customer support teams for e-commerce stores handle large volumes of repetitive inquiries regarding order tracking, delivery timelines, product specifications, returns, refunds, payment methods, and company policies. Standard chatbot approaches fail in production for three primary reasons:
+1. **Lack of Business Grounding:** Generic LLMs hallucinate orders, items, tracking timelines, or return windows because they lack secure access to the store's operational database.
+2. **Security & Privacy Risks:** Inadequately secured conversational systems risk exposing Customer A's private purchase history to Customer B.
 3. **Premature Escalation vs. Deadlock:** Basic bots either escalate immediately without investigating or trap customers in unhelpful loops without providing human supervisor review when business rules cannot resolve the dispute.
 
-This project implements an autonomous agent architecture that securely bridges customer identity, structured relational databases, policy knowledge bases, and human escalation queues.
+This application implements an autonomous agent architecture that securely bridges customer identity, structured relational databases, policy knowledge bases, and human escalation queues.
 
 ---
 
@@ -94,7 +103,7 @@ This project implements an autonomous agent architecture that securely bridges c
   - **Case C (Contact Before Issue):** Acknowledges customer contact details and asks for issue specifics.
   - **Case D (Actionable Escalation):** Automatically creates a real ticket (`ESC-XXXXXXXX`), links customer contact info and affected order ID, and stores it in Supabase.
   - **De-Contamination Boundary:** Prevents past escalation tickets from hijacking future unrelated turns (e.g. asking for latest order items or payment methods after an escalation).
-- **Speech-to-Text Input:** Integrated Whisper audio transcription endpoint for hands-free voice inquiries.
+- **Speech-to-Text Input:** Integrated Whisper audio transcription endpoint for voice inquiries.
 - **Truthful Non-Existent Product Handling:** Defends against brand hallucinations (e.g., Nike, Sony) by verifying against actual database records.
 
 ---
@@ -112,7 +121,7 @@ This project implements an autonomous agent architecture that securely bridges c
 | **Speech Recognition** | OpenAI Whisper API | High-accuracy multi-lingual voice transcription |
 | **Frontend Framework** | React + Vite | React 18, Vite 5.4+ |
 | **Frontend Styling** | Vanilla CSS Design Tokens | Custom dark mode, responsive glassmorphism |
-| **Testing Suite** | Pytest + Starlette TestClient | 57 automated tests (36 core + 21 agent deterministic) |
+| **Testing Suite** | Pytest + Starlette TestClient | 92 automated tests (34 core + 58 agent tests) |
 
 ---
 
@@ -132,7 +141,7 @@ This project implements an autonomous agent architecture that securely bridges c
   - `order_payments`: Order ID, sequential payment index, payment type, installments, payment value.
 - **Data Integrity:** All foreign key relationships (`customer_id`, `order_id`, `product_id`) verified with 100% referential integrity.
 
-### 3. Custom Company Policy Knowledge Base
+### 3. Company Policy Knowledge Base
 - **Directory:** `knowledge_base/`
 - **Documents:**
   - `return_policy.md`: 7-day statutory right of withdrawal, 30-day defective return window, condition rules.
@@ -154,15 +163,20 @@ Strict customer isolation is guaranteed through multiple defensive layers:
 
 ---
 
-## 8. Directory Structure
+## 8. Project Structure
 
 ```text
-Capstone Project/
+autonomous-ai-customer-support-agent/
 ├── .env.example                               # Root environment variable template
 ├── .gitignore                                 # Git ignore definitions
+├── LICENSE                                    # MIT License
 ├── README.md                                  # Comprehensive project documentation
+├── screenshots/                               # Application screenshots for documentation
+│   ├── 01-main-interface.png
+│   ├── 02-order-and-product-inquiry.png
+│   └── 03-human-escalation.png
 ├── Dataset/                                   # Frozen source CSV datasets (Olist & Bitext)
-├── Project Details/                           # Official project charter PDF
+├── Project Details/                           # Architecture specifications & PDF overview
 ├── backend/
 │   ├── .env.example                           # Backend configuration template
 │   ├── requirements.txt                       # Pinned Python dependencies
@@ -215,7 +229,7 @@ Clone the repository and prepare the configuration files:
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/autonomous-ai-customer-support-agent.git
+git clone https://github.com/thirilose-learn/autonomous-ai-customer-support-agent.git
 cd autonomous-ai-customer-support-agent
 
 # Create environment configuration files from templates
@@ -266,24 +280,24 @@ The test suite validates database schemas, JWT token lifecycle, customer isolati
 
 ### Running the Deterministic Test Suite (Zero Groq Tokens Consumed)
 ```powershell
-# Run core backend test suites (36 tests)
+# Run core backend test suites (34 tests)
 backend/.venv/Scripts/python.exe -m pytest backend/tests/test_data_validation.py backend/tests/test_database_schema.py backend/tests/test_demo_session.py backend/tests/test_health.py backend/tests/test_rag_pipeline.py backend/tests/test_supabase_connection.py backend/tests/test_whisper_transcription.py -v
 
-# Run agent deterministic tests (21 tests)
-backend/.venv/Scripts/python.exe -m pytest backend/tests/test_ai_agent.py -k "generic_human or escalation_readiness or pending_escalation or customer_orders or customer_order_details or format_category or missing_order or boundary or post_escalation or new_substantive or multi_order or single_order or customer_00002 or ticket_payload" -v
+# Run agent deterministic tests (58 tests)
+backend/.venv/Scripts/python.exe -m pytest backend/tests/test_ai_agent.py -v
 ```
-**Result: 57 passed in under 25 seconds.**
+**Result: All tests pass cleanly in under 30 seconds with zero API rate-limit impact.**
 
 ### Building Frontend Production Bundle
 ```powershell
 cd frontend
 npm run build
 ```
-**Result: Built cleanly in under 3.5s with zero errors or warnings.**
+**Result: Built cleanly in under 300ms with zero errors.**
 
 ---
 
-## 11. Manual Browser Verification Guide
+## 11. Manual Verification Guide
 
 Visit `http://localhost:5173` to test live functionality:
 
@@ -294,13 +308,13 @@ Visit `http://localhost:5173` to test live functionality:
 2. **Product Details & Pricing:**
    - In Customer 00002, ask: *"What items are in order 826b47e4cd7bba4e4c6fa5485f898b74?"*.
    - Verify it returns both items: `Home Construction` (R$239.90) and `Furniture & Decor` (R$97.00).
-3. **Escalation Precision (Multi-Order Disambiguation):**
-   - In Customer 00001, click *"🎫 Request supervisor review"*.
-   - Agent asks for the specific issue or order.
-   - Reply: *"My delivered order arrived damaged and I need a replacement. Email: test@example.com"*.
-   - Agent asks for the specific **order ID, date, or product name** because Customer 00001 has 17 orders.
-   - Reply: *"The order ID is c2213109a2cc0e75d55585b7aaac6d97"*.
-   - Agent invokes `request_human_escalation`, produces a real Ticket ID (`ESC-XXXXXXXX`), and attaches the order ID.
+3. **Escalation Precision & Order Disambiguation:**
+   - In Customer 00001, ask: *"What did I buy in my latest order?"*.
+   - Confirm agent identifies order `d3582fd5ccccd9cb229a63dfb417c86f` and its item (Construction Tools).
+   - Send: *"My delivered order arrived severely damaged and I need a replacement. Email: customer.test@example.com"*.
+   - Agent does **NOT** immediately escalate; it asks whether the issue concerns the order just discussed or a different order.
+   - Reply: *"Yes, the order we just discussed"*.
+   - Agent creates exactly one real Ticket ID (`ESC-XXXXXXXX`), attaching the contact email and affected order ID `d3582fd5ccccd9cb229a63dfb417c86f`.
 4. **De-Contamination Verification:**
    - In the same thread after ticket creation, ask: *"What payment method was used for my orders?"*.
    - Agent answers payment methods directly; does **NOT** re-escalate or spawn a second ticket.
@@ -315,11 +329,13 @@ Visit `http://localhost:5173` to test live functionality:
 ## 12. Known Limitations
 
 - **Groq Cloud Rate Limits:** Free Developer Tier keys enforce a 200,000 Tokens Per Day (TPD) quota. Heavy automated multi-turn testing should be managed with deterministic unit tests to preserve quota for live evaluation.
-- **Olist Catalog Granularity:** The Olist dataset records products by Brazilian category classifications, weights, and dimensions rather than consumer brand names. The agent formats categories into clean English (e.g. `Bed Bath & Table`).
+- **Olist Catalog Granularity:** The Olist dataset records products by category classifications, weights, and dimensions rather than consumer brand names. The agent formats categories into clean English (e.g. `Bed Bath & Table`).
 - **Demo Persona Scope:** The current frontend supports 5 pre-configured demo personas (`DEMO_00001` through `DEMO_00005`) mapped from the Olist dataset to showcase different customer journey archetypes.
 
 ---
 
-## 13. License & Academic Attribution
+## 13. Author & License
 
-This project was developed as a Capstone Project for the Advanced AI / Data Analytics Program by **Thirilose Jones Nithish R**. Source datasets courtesy of Olist and Bitext. Free-tier cloud infrastructure provided by Supabase and Groq.
+Built and maintained by **Thirilose Jones Nithish R**.
+
+This project is licensed under the terms of the [MIT License](LICENSE).

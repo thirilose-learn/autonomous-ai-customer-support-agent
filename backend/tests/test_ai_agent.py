@@ -1134,6 +1134,332 @@ def test_escalation_ticket_payload_includes_order_id():
     assert "Affected Order:" in result
 
 
+# =====================================================================
+# FINAL ESCALATION PRECISION & DETERMINISTIC CONTEXT TESTS
+# =====================================================================
+
+def test_previous_order_context_requires_confirmation_before_escalation():
+    """
+    TEST 1 (CASE B): If an order was discussed previously in conversation history,
+    but the customer's subsequent damage complaint turn does NOT explicitly confirm
+    it concerns that order, the system must NOT immediately escalate.
+    It requires confirmation first.
+    """
+    from langchain_core.messages import HumanMessage, AIMessage
+    from app.services.escalation_policy import detect_pending_escalation_intent, get_previous_order_from_history
+
+    customer = get_persona_by_id("DEMO_00001")
+    assert customer.total_orders > 1
+
+    history = [
+        HumanMessage(content="What did I buy in my latest order?"),
+        AIMessage(content="Your most recent order is d3582fd5ccccd9cb229a63dfb417c86f and it contains Construction Tools."),
+    ]
+
+    user_msg = "My delivered order arrived severely damaged and I need a replacement. Email: customer.test@example.com"
+    is_pending, email, phone, reason, order_id = detect_pending_escalation_intent(
+        history, user_msg, customer=customer
+    )
+
+    # Must NOT escalate immediately
+    assert is_pending is False
+    assert email == "customer.test@example.com"
+    assert order_id is None
+    # Previous order is recognized in history for the clarification prompt
+    assert get_previous_order_from_history(history) == "d3582fd5ccccd9cb229a63dfb417c86f"
+
+
+def test_previous_order_confirmed_allows_escalation():
+    """
+    TEST 2 (CASE C): When the customer explicitly confirms the previously discussed order
+    ('Yes, that order' or 'Yes, the order we just discussed'), order context is established
+    and escalation succeeds.
+    """
+    from langchain_core.messages import HumanMessage, AIMessage
+    from app.services.escalation_policy import detect_pending_escalation_intent
+
+    customer = get_persona_by_id("DEMO_00001")
+
+    history = [
+        HumanMessage(content="What did I buy in my latest order?"),
+        AIMessage(content="Your most recent order is d3582fd5ccccd9cb229a63dfb417c86f and it contains Construction Tools."),
+        HumanMessage(content="My delivered order arrived severely damaged and I need a replacement. Email: customer.test@example.com"),
+        AIMessage(content="Is this regarding the order we just discussed, or a different order? If it's a different order, please provide the order ID."),
+    ]
+
+    # User confirms with 'Yes, that order'
+    user_msg = "Yes, that order."
+    is_pending, email, phone, reason, order_id = detect_pending_escalation_intent(
+        history, user_msg, customer=customer
+    )
+
+    assert is_pending is True
+    assert email == "customer.test@example.com"
+    assert order_id == "d3582fd5ccccd9cb229a63dfb417c86f"
+    assert "severely damaged" in reason.lower()
+
+    # Also test with 'Yes, the order we just discussed'
+    user_msg_alt = "Yes, the order we just discussed."
+    is_pending_alt, _, _, _, order_id_alt = detect_pending_escalation_intent(
+        history, user_msg_alt, customer=customer
+    )
+    assert is_pending_alt is True
+    assert order_id_alt == "d3582fd5ccccd9cb229a63dfb417c86f"
+
+
+def test_previous_order_context_can_be_replaced_by_new_order_id():
+    """
+    TEST 3 (CASE D): When the customer specifies a different order ID, the system must use the
+    newly provided order ID, NOT the previously discussed order.
+    """
+    from langchain_core.messages import HumanMessage, AIMessage
+    from app.services.escalation_policy import detect_pending_escalation_intent
+
+    customer = get_persona_by_id("DEMO_00001")
+
+    history = [
+        HumanMessage(content="What did I buy in my latest order?"),
+        AIMessage(content="Your most recent order is d3582fd5ccccd9cb229a63dfb417c86f and it contains Construction Tools."),
+        HumanMessage(content="My delivered order arrived severely damaged and I need a replacement. Email: customer.test@example.com"),
+        AIMessage(content="Is this regarding the order we just discussed, or a different order? If it's a different order, please provide the order ID."),
+    ]
+
+    new_order_id = "c2213109a2cc0e75d55585b7aaac6d97"
+    user_msg = f"It's a different order. The order ID is {new_order_id}."
+    is_pending, email, phone, reason, order_id = detect_pending_escalation_intent(
+        history, user_msg, customer=customer
+    )
+
+    assert is_pending is True
+    assert email == "customer.test@example.com"
+    assert order_id == new_order_id
+    assert order_id != "d3582fd5ccccd9cb229a63dfb417c86f"
+
+
+def test_multiple_orders_without_context_blocks_escalation():
+    """
+    TEST 4 (CASE A): Multi-order customer reports a substantive issue with contact info,
+    but provides zero order context (no ID, no date, no product). Escalation must be blocked.
+    """
+    from app.services.escalation_policy import detect_pending_escalation_intent
+
+    customer = get_persona_by_id("DEMO_00001")
+    assert customer.total_orders > 1
+
+    user_msg = "My delivered order arrived severely damaged and I need a replacement. Email: customer.test@example.com"
+    is_pending, email, phone, reason, order_id = detect_pending_escalation_intent(
+        [], user_msg, customer=customer
+    )
+
+    assert is_pending is False
+    assert email == "customer.test@example.com"
+    assert order_id is None
+    assert reason is not None
+
+
+def test_product_context_resolves_unique_order():
+    """
+    TEST 5 (CASE E - Unique): When customer specifies a product name that belongs to exactly 1
+    customer order, the system resolves that unique order and proceeds toward escalation.
+    """
+    from app.services.escalation_policy import detect_pending_escalation_intent
+    from app.schemas.session import CustomerContext
+
+    mock_customer = CustomerContext(
+        demo_customer_id="DEMO_TEST_PROD",
+        customer_unique_id="test_uid_prod_001",
+        display_name="Product Test Customer",
+        demo_email="prod.test@example.com",
+        total_orders=2,
+        primary_scenario="TEST_PROD",
+    )
+
+    mock_orders = [
+        {
+            "order_id": "order_construction_111",
+            "items": [{"category": "Construction Tools"}],
+            "items_summary": ["1x Construction Tools (R$ 150.00)"],
+        },
+        {
+            "order_id": "order_garden_222",
+            "items": [{"category": "Garden"}],
+            "items_summary": ["1x Garden (R$ 45.00)"],
+        },
+    ]
+
+    user_msg = "The Construction Tools item is the one that arrived damaged. Email: customer.test@example.com"
+    is_pending, email, phone, reason, order_id = detect_pending_escalation_intent(
+        [], user_msg, customer=mock_customer, customer_orders=mock_orders
+    )
+
+    assert is_pending is True
+    assert order_id == "order_construction_111"
+    assert email == "customer.test@example.com"
+
+
+def test_ambiguous_product_context_blocks_escalation():
+    """
+    TEST 6 (CASE E - Ambiguous): When customer specifies a product category that appears in MULTIPLE
+    orders, the system must not guess and must block escalation, requesting order ID / date.
+    """
+    from app.services.escalation_policy import detect_pending_escalation_intent
+    from app.schemas.session import CustomerContext
+
+    mock_customer = CustomerContext(
+        demo_customer_id="DEMO_TEST_AMBIG",
+        customer_unique_id="test_uid_ambig_001",
+        display_name="Ambig Test Customer",
+        demo_email="ambig.test@example.com",
+        total_orders=2,
+        primary_scenario="TEST_AMBIG",
+    )
+
+    mock_orders = [
+        {
+            "order_id": "order_construction_aaa",
+            "items": [{"category": "Construction Tools"}],
+            "items_summary": ["1x Construction Tools (R$ 150.00)"],
+        },
+        {
+            "order_id": "order_construction_bbb",
+            "items": [{"category": "Construction Tools"}],
+            "items_summary": ["1x Construction Tools (R$ 200.00)"],
+        },
+    ]
+
+    user_msg = "The Construction Tools item is the one that arrived damaged. Email: customer.test@example.com"
+    is_pending, email, phone, reason, order_id = detect_pending_escalation_intent(
+        [], user_msg, customer=mock_customer, customer_orders=mock_orders
+    )
+
+    # Must NOT guess or escalate
+    assert is_pending is False
+    assert order_id is None
+
+
+def test_post_ticket_unrelated_question_does_not_re_escalate():
+    """
+    TEST 8: After a ticket (e.g. ESC-DDF100A6) has been generated:
+    Subsequent unrelated customer inquiries (latest order items, payment methods, order tracking)
+    must NOT create another escalation ticket or inherit old escalation state.
+    """
+    from langchain_core.messages import HumanMessage, AIMessage
+    from app.services.escalation_policy import detect_pending_escalation_intent
+
+    history_after_ticket = [
+        HumanMessage(content="I need a supervisor."),
+        AIMessage(content="Please provide your email and describe the issue."),
+        HumanMessage(content="My email is customer.test@example.com and my order arrived broken."),
+        AIMessage(content="I have escalated your request under Ticket ESC-DDF100A6."),
+    ]
+
+    customer = get_persona_by_id("DEMO_00001")
+
+    # Turn 4: Latest order inquiry
+    is_p1, _, _, r1, _ = detect_pending_escalation_intent(
+        history_after_ticket, "What did I buy in my latest order?", customer=customer
+    )
+    assert is_p1 is False
+    assert r1 is None
+
+    # Turn 5: Payment method inquiry
+    is_p2, _, _, r2, _ = detect_pending_escalation_intent(
+        history_after_ticket, "What payment method was used for my orders?", customer=customer
+    )
+    assert is_p2 is False
+    assert r2 is None
+
+    # Turn 6: Tracking inquiry
+    is_p3, _, _, r3, _ = detect_pending_escalation_intent(
+        history_after_ticket, "Where is my order?", customer=customer
+    )
+    assert is_p3 is False
+    assert r3 is None
+
+
+def test_fallback_model_cannot_bypass_escalation_validation():
+    """
+    TEST 9 (FALLBACK MODEL SAFETY):
+    Directly tests that request_human_escalation authoritatively rejects ticket creation
+    when:
+    1. Order ID is missing for a multi-order customer.
+    2. Order ID belongs to a different customer.
+    3. Reason is a generic human request.
+    4. Contact info is invalid.
+    Even if a primary or fallback LLM directly invokes the tool, backend policy remains authoritative.
+    """
+    customer = get_persona_by_id("DEMO_00001")
+    assert customer.total_orders > 1
+
+    tools = build_escalation_tools(customer)
+    esc_tool = next(t for t in tools if t.name == "request_human_escalation")
+
+    # 1. Missing order_id for multi-order customer
+    res_no_order = esc_tool.invoke({
+        "reason": "Delivered package was crushed in transit",
+        "contact_info": "customer.test@example.com",
+        "order_id": None,
+    })
+    assert "Action Denied" in res_no_order
+    assert "order" in res_no_order.lower()
+
+    # 2. Order ID belonging to Customer 00002 instead of Customer 00001
+    res_wrong_order = esc_tool.invoke({
+        "reason": "Delivered package was crushed in transit",
+        "contact_info": "customer.test@example.com",
+        "order_id": "ff89ef7b3952bba5ac06d61c4a79ffbe",
+    })
+    assert "Action Denied" in res_wrong_order
+    assert "does not belong" in res_wrong_order.lower()
+
+    # 3. Generic reason without substantive problem
+    res_generic = esc_tool.invoke({
+        "reason": "I want to speak with a human agent please",
+        "contact_info": "customer.test@example.com",
+        "order_id": "c2213109a2cc0e75d55585b7aaac6d97",
+    })
+    assert "Action Denied" in res_generic
+
+    # 4. Invalid contact info
+    res_bad_contact = esc_tool.invoke({
+        "reason": "Delivered package was crushed in transit",
+        "contact_info": "not_an_email_or_phone",
+        "order_id": "c2213109a2cc0e75d55585b7aaac6d97",
+    })
+    assert "Action Denied" in res_bad_contact
+
+
+def test_ticket_payload_contains_confirmed_affected_order():
+    """
+    TEST 10: Verify that when all conditions are fulfilled and request_human_escalation is invoked,
+    the persisted ticket payload includes:
+    - customer identity/context
+    - confirmed affected order ID
+    - substantive issue
+    - contact information
+    - conversation summary
+    """
+    customer = get_persona_by_id("DEMO_00001")
+    tools = build_escalation_tools(customer)
+    esc_tool = next(t for t in tools if t.name == "request_human_escalation")
+
+    confirmed_order_id = "c2213109a2cc0e75d55585b7aaac6d97"
+    result = esc_tool.invoke({
+        "reason": "Construction Tools item arrived severely damaged; customer requests replacement.",
+        "contact_info": "customer.test@example.com",
+        "order_id": confirmed_order_id,
+        "product_name": "Construction Tools",
+    })
+
+    assert "Escalation Request Created Successfully" in result
+    assert "ESC-" in result
+    assert customer.display_name in result
+    assert confirmed_order_id in result
+    assert "customer.test@example.com" in result
+    assert "Construction Tools" in result
+    assert "severely damaged" in result
+
+
 
 
 
