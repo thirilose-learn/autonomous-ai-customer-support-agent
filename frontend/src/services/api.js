@@ -261,6 +261,34 @@ export async function resetChat(conversationId = null) {
   return response.json();
 }
 
+/**
+ * Transcribes speech audio to text via backend Whisper endpoint.
+ * @param {Blob} audioBlob
+ * @returns {Promise<{text: string, language: string}>}
+ */
+export async function transcribeAudio(audioBlob) {
+  const token = getStoredToken();
+  if (!token) {
+    throw new Error("No active customer session. Please select a customer persona first.");
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/v1/chat/transcribe`, {
+    method: "POST",
+    headers: {
+      "Content-Type": audioBlob.type || "audio/webm",
+      "Authorization": `Bearer ${token}`,
+    },
+    body: audioBlob,
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || `Speech transcription failed (${response.status})`);
+  }
+  return response.json();
+}
+
 export function getApiBaseUrl() {
   return API_BASE_URL;
 }
+

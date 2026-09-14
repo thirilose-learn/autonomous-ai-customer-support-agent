@@ -55,9 +55,10 @@ class Settings(BaseSettings):
     # Free Hosted LLM & Agent Provider Settings (Level 5 - 100% Free Developer Tier)
     LLM_PROVIDER: str = "groq"
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "openai/gpt-oss-120b"
-    GROQ_FALLBACK_MODEL: str = "openai/gpt-oss-20b"
+    GROQ_MODEL: str = "openai/gpt-oss-20b"
+    GROQ_FALLBACK_MODEL: str = "openai/gpt-oss-120b"
     GROQ_TEMPERATURE: float = 0.1
+    GROQ_WHISPER_MODEL: str = "whisper-large-v3"
 
 
 

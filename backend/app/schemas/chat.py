@@ -34,3 +34,8 @@ class ChatResetResponse(BaseModel):
     status: str = "success"
     message: str = "Conversation history reset successfully"
     conversation_id: str
+
+
+class AudioTranscriptionResponse(BaseModel):
+    text: str = Field(..., description="Transcribed text recognized from speech")
+    language: str = Field(default="en", description="Speech language")

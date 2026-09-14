@@ -70,3 +70,10 @@ ehthumbs.db
 scratch/
 tmp/
 **/tmp/
+temp/
+**/temp/
+**/.tempmediaStorage/
+.agents/
+**/.agents/
+*.local
+

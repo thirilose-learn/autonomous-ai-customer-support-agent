@@ -25,14 +25,29 @@ export default function App() {
   const [personaError, setPersonaError] = useState(null);
   const [isAgentResponding, setIsAgentResponding] = useState(false);
 
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'assistant',
-      isWelcome: true,
-      text: "👋 Welcome to the Autonomous AI Customer Support & Resolution Agent.\n\nLevel 5 Agent Architecture is live! Select a customer persona above to ground conversations in authentic customer orders, execute policy RAG knowledge searches, or request human escalation.",
-    },
-  ]);
+  // In-memory per-persona conversation state for the active application session
+  const [personaChats, setPersonaChats] = useState({});
+
+  const getInitialGreeting = (persona) => {
+    if (!persona) {
+      return [
+        {
+          id: 'welcome-default',
+          sender: 'assistant',
+          isWelcome: true,
+          text: "👋 Welcome! I am your AI Customer Support & Resolution Assistant.\n\nI can help you check order statuses, review return and refund policies, or connect you with a supervisor for complex inquiries.\n\nHow can I assist you today?",
+        },
+      ];
+    }
+    return [
+      {
+        id: `welcome-${persona.demo_customer_id}`,
+        sender: 'assistant',
+        isWelcome: true,
+        text: `👋 Hello **${persona.display_name}**! Welcome to Customer Support.\n\nI have access to your account records for **${persona.customer_city || 'your location'}, ${persona.customer_state || 'BR'}** (${persona.total_orders} order${persona.total_orders === 1 ? '' : 's'} on file).\n\nHow can I help you today? You can ask me to track an order, explain our return/refund policies, or request assistance from a supervisor.`,
+      },
+    ];
+  };
 
   const verifyHealth = async () => {
     setBackendStatus('loading');
@@ -58,10 +73,18 @@ export default function App() {
       const activeProfile = await getCurrentCustomerProfile();
       if (activeProfile) {
         setSelectedPersona(activeProfile);
+        setPersonaChats((prev) => ({
+          ...prev,
+          [activeProfile.demo_customer_id]: prev[activeProfile.demo_customer_id] || getInitialGreeting(activeProfile),
+        }));
       } else if (list.length > 0) {
         const defaultId = list[0].demo_customer_id;
         const session = await selectDemoPersona(defaultId);
         setSelectedPersona(session.customer);
+        setPersonaChats((prev) => ({
+          ...prev,
+          [session.customer.demo_customer_id]: prev[session.customer.demo_customer_id] || getInitialGreeting(session.customer),
+        }));
       }
     } catch (err) {
       setPersonaError(err.message || 'Failed to load demo personas.');
@@ -83,12 +106,16 @@ export default function App() {
       const session = await selectDemoPersona(demoCustomerId);
       setSelectedPersona(session.customer);
 
-      const notifyMsg = {
-        id: Date.now(),
-        sender: 'assistant',
-        text: `Switched customer persona to **${session.customer.display_name}** (${session.customer.demo_customer_id}).\n\n• **Scenario**: \`${session.customer.primary_scenario}\`\n• **Lifetime Orders**: ${session.customer.total_orders}\n• **Location**: ${session.customer.customer_city || 'N/A'}, ${session.customer.customer_state || 'N/A'}\n• **Sample Order ID**: \`${session.customer.sample_order_id || 'N/A'}\`\n\nAll subsequent customer-scoped inquiries and tool executions will be strictly bound to this identity.`,
-      };
-      setMessages((prev) => [...prev, notifyMsg]);
+      // Ensure newly selected persona has an initialized conversation if not yet started
+      setPersonaChats((prev) => {
+        if (!prev[demoCustomerId]) {
+          return {
+            ...prev,
+            [demoCustomerId]: getInitialGreeting(session.customer),
+          };
+        }
+        return prev;
+      });
     } catch (err) {
       setPersonaError(err.message || 'Failed to switch persona.');
     } finally {
@@ -96,8 +123,15 @@ export default function App() {
     }
   };
 
+  const activePersonaId = selectedPersona?.demo_customer_id;
+  const currentMessages = activePersonaId
+    ? (personaChats[activePersonaId] || getInitialGreeting(selectedPersona))
+    : getInitialGreeting(null);
+
   const handleSendMessage = async (text) => {
     if (!text || !text.trim() || isAgentResponding) return;
+    const personaId = selectedPersona?.demo_customer_id;
+    if (!personaId) return;
 
     const userMsg = {
       id: Date.now(),
@@ -105,7 +139,13 @@ export default function App() {
       text: text.trim(),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    setPersonaChats((prev) => {
+      const existing = prev[personaId] || getInitialGreeting(selectedPersona);
+      return {
+        ...prev,
+        [personaId]: [...existing, userMsg],
+      };
+    });
     setIsAgentResponding(true);
 
     try {
@@ -119,7 +159,13 @@ export default function App() {
         tool_details: agentResult.tool_details,
         latency_ms: agentResult.latency_ms,
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      setPersonaChats((prev) => {
+        const existing = prev[personaId] || [];
+        return {
+          ...prev,
+          [personaId]: [...existing, assistantMsg],
+        };
+      });
     } catch (err) {
       const errorMsg = {
         id: Date.now() + 1,
@@ -127,7 +173,13 @@ export default function App() {
         text: `⚠️ **Agent Error**: ${err.message || 'Unable to process inquiry. Please ensure backend is running.'}`,
         isError: true,
       };
-      setMessages((prev) => [...prev, errorMsg]);
+      setPersonaChats((prev) => {
+        const existing = prev[personaId] || [];
+        return {
+          ...prev,
+          [personaId]: [...existing, errorMsg],
+        };
+      });
     } finally {
       setIsAgentResponding(false);
     }
@@ -145,24 +197,14 @@ export default function App() {
         onRetryBackend={verifyHealth}
         personas={personas}
         selectedPersona={selectedPersona}
-        personaLoading={personaLoading}
+        personaLoading={personaLoading || isAgentResponding}
         personaError={personaError}
         onSelectPersona={handleSelectPersona}
       />
 
-      {selectedPersona && (
-        <div className="active-customer-banner">
-          <div>
-            👤 Active Persona: <strong>{selectedPersona.display_name}</strong> ({selectedPersona.demo_customer_id}) &bull; Scenario: <em>{selectedPersona.primary_scenario}</em>
-          </div>
-          <div>
-            📍 {selectedPersona.customer_city || 'City'}, {selectedPersona.customer_state || 'ST'} &bull; Orders: <strong>{selectedPersona.total_orders}</strong>
-          </div>
-        </div>
-      )}
-
       <ChatWindow
-        messages={messages}
+        messages={currentMessages}
+        isAgentResponding={isAgentResponding}
         onSelectPrompt={handleSelectPrompt}
       />
       <MessageInput
