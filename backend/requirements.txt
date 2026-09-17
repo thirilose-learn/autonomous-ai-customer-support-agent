@@ -1,23 +1,21 @@
-# Level 1 Core Backend Dependencies (Python 3.12 verified)
+# Core Backend & Web Framework
 fastapi==0.141.1
 uvicorn[standard]==0.52.4
 pydantic==2.13.5
 pydantic-settings==2.15.0
 python-dotenv==1.2.3
 httpx==0.28.1
-pytest==9.1.1
-pytest-asyncio==1.4.0
 
-# Level 3 Database Integration (Python 3.12 verified)
+# Database & Storage
 supabase==2.31.0
 psycopg2-binary==2.9.12
 
-# Level 4 Free Local RAG & Vector Dependencies (100% Free & Open Source)
+# Embeddings & Document Ingestion
 fastembed==0.8.0
 llama-index-core==0.14.24
 llama-index-readers-file==0.7.0
 
-# Level 5 Free Hosted AI Agent & Tool Calling (100% Free Developer Tier)
+# LLM Orchestration & Tool Calling
 langchain>=0.3.0
 langchain-core>=0.3.0
 langchain-community>=0.3.0

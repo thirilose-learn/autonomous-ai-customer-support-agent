@@ -98,13 +98,13 @@ This application implements an autonomous agent architecture that securely bridg
 - **Payment Method Auditing:** Inspection of payment types (credit card, voucher, boleto), installment plans, and total payment amounts.
 - **Semantic Knowledge Base RAG:** Local BAAI/bge-small-en-v1.5 embeddings and pgvector cosine similarity search across 6 company policy documents.
 - **Intelligent Escalation Management:**
-  - **Case A (Generic Human Request):** Asks what issue or order needs help without prematurely demanding contact info.
-  - **Case B (Order Disambiguation):** Automatically detects multi-order customers and requires order ID, order date, or product details before creating a ticket.
-  - **Case C (Contact Before Issue):** Acknowledges customer contact details and asks for issue specifics.
-  - **Case D (Actionable Escalation):** Automatically creates a real ticket (`ESC-XXXXXXXX`), links customer contact info and affected order ID, and stores it in Supabase.
-  - **De-Contamination Boundary:** Prevents past escalation tickets from hijacking future unrelated turns (e.g. asking for latest order items or payment methods after an escalation).
-- **Speech-to-Text Input:** Integrated Whisper audio transcription endpoint for voice inquiries.
-- **Truthful Non-Existent Product Handling:** Defends against brand hallucinations (e.g., Nike, Sony) by verifying against actual database records.
+  - **Generic Supervisor Inquiries:** Inquires about the specific concern or order before initiating escalation.
+  - **Multi-Order Disambiguation:** Prompts the customer for the specific order or item reference when multiple orders exist.
+  - **Contact Information Verification:** Collects customer email or phone number to link directly with the ticket.
+  - **Persistent Ticket Creation:** Generates a structured ticket record (`ESC-XXXXXXXX`) in the database with customer context, order reference, priority, and reason summary.
+  - **Conversation De-Contamination:** Isolates escalation states to maintain context clarity across subsequent unrelated inquiries.
+- **Speech-to-Text Input:** Integrated Whisper audio transcription endpoint for hands-free voice inquiries.
+- **Truthful Catalog Grounding:** Validates products and categories against verified database records to prevent brand hallucinations.
 
 ---
 
@@ -115,13 +115,12 @@ This application implements an autonomous agent architecture that securely bridg
 | **Backend Framework** | FastAPI | >= 0.115.0 |
 | **Server Engine** | Uvicorn (ASGI) | >= 0.30.0 |
 | **Agent Orchestration** | LangChain | >= 0.3.0 |
-| **LLM Provider** | Groq Cloud Developer Tier | `openai/gpt-oss-120b` (Primary), `openai/gpt-oss-20b` (Fallback) |
-| **Embeddings Model** | HuggingFace `BAAI/bge-small-en-v1.5` | 384-dimensional dense vectors (100% offline & free) |
+| **LLM Provider** | Groq Cloud | `openai/gpt-oss-120b` (Primary), `openai/gpt-oss-20b` (Fallback) |
+| **Embeddings Model** | HuggingFace `BAAI/bge-small-en-v1.5` | 384-dimensional dense vectors (FastEmbed) |
 | **Database & Vector Store**| Supabase PostgreSQL | PostgreSQL 15+ with `pgvector` extension |
 | **Speech Recognition** | OpenAI Whisper API | High-accuracy multi-lingual voice transcription |
 | **Frontend Framework** | React + Vite | React 18, Vite 5.4+ |
-| **Frontend Styling** | Vanilla CSS Design Tokens | Custom dark mode, responsive glassmorphism |
-| **Testing Suite** | Pytest + Starlette TestClient | 92 automated tests (34 core + 58 agent tests) |
+| **Frontend Styling** | Vanilla CSS Design Tokens | Responsive dark mode with glassmorphism aesthetics |
 
 ---
 
@@ -139,7 +138,7 @@ This application implements an autonomous agent architecture that securely bridg
   - `order_items`: Order ID, item sequence ID, product ID, seller ID, price, freight value.
   - `products`: Product ID, category names (Portuguese + English translation), dimensions, weight.
   - `order_payments`: Order ID, sequential payment index, payment type, installments, payment value.
-- **Data Integrity:** All foreign key relationships (`customer_id`, `order_id`, `product_id`) verified with 100% referential integrity.
+- **Data Integrity:** All foreign key relationships (`customer_id`, `order_id`, `product_id`) maintain strict referential integrity.
 
 ### 3. Company Policy Knowledge Base
 - **Directory:** `knowledge_base/`
@@ -175,29 +174,28 @@ autonomous-ai-customer-support-agent/
 │   ├── 01-main-interface.png
 │   ├── 02-order-and-product-inquiry.png
 │   └── 03-human-escalation.png
-├── Dataset/                                   # Frozen source CSV datasets (Olist & Bitext)
-├── Project Details/                           # Architecture specifications & PDF overview
+├── Dataset/                                   # Source CSV datasets (Olist & Bitext)
+├── Project Details/                           # Architecture specifications & overview
 ├── backend/
 │   ├── .env.example                           # Backend configuration template
-│   ├── requirements.txt                       # Pinned Python dependencies
-│   ├── app/
-│   │   ├── main.py                            # FastAPI app, CORS, lifespans
-│   │   ├── agents/
-│   │   │   ├── agent.py                       # LangChain agent reasoning & tool loop
-│   │   │   ├── llm.py                         # ChatGroq model factory
-│   │   │   ├── memory.py                      # Multi-turn conversation store
-│   │   │   ├── prompts.py                     # Production system prompt & directives
-│   │   │   └── tools/
-│   │   │       ├── customer_tools.py          # Orders, items, payment tools
-│   │   │       ├── escalation_tool.py         # Human escalation ticket creation
-│   │   │       └── policy_tool.py             # Knowledge base pgvector search
-│   │   ├── api/v1/endpoints/                  # Auth, chat, health, RAG endpoints
-│   │   ├── core/                              # App config & JWT session handling
-│   │   ├── database/                          # Supabase client & schema validation
-│   │   ├── rag/                               # Embedding engine & vector store
-│   │   ├── schemas/                           # Pydantic request/response contracts
-│   │   └── services/                          # Customer data, escalation policy, sessions
-│   └── tests/                                 # Automated Pytest regression suites (8 files)
+│   ├── requirements.txt                       # Runtime Python dependencies
+│   └── app/
+│       ├── main.py                            # FastAPI app, CORS, lifespans
+│       ├── agents/
+│       │   ├── agent.py                       # LangChain agent reasoning & tool loop
+│       │   ├── llm.py                         # ChatGroq model factory
+│       │   ├── memory.py                      # Multi-turn conversation store
+│       │   ├── prompts.py                     # Production system prompt & directives
+│       │   └── tools/
+│       │       ├── customer_tools.py          # Orders, items, payment tools
+│       │       ├── escalation_tool.py         # Human escalation ticket creation
+│       │       └── policy_tool.py             # Knowledge base pgvector search
+│       ├── api/v1/endpoints/                  # Auth, chat, health, RAG endpoints
+│       ├── core/                              # App config & JWT session handling
+│       ├── database/                          # Supabase client & schema validation
+│       ├── rag/                               # Embedding engine & vector store
+│       ├── schemas/                           # Pydantic request/response contracts
+│       └── services/                          # Customer data, escalation policy, sessions
 ├── frontend/
 │   ├── .env.example                           # Frontend configuration template
 │   ├── package.json                           # NPM dependencies
@@ -209,9 +207,15 @@ autonomous-ai-customer-support-agent/
 │       ├── components/                        # UI: ChatWindow, Header, MessageInput, etc.
 │       └── services/api.js                    # API client with token & Whisper audio upload
 ├── knowledge_base/                            # Markdown policy documents for RAG
-├── processed_data/                            # Cleaned datasets, reports, synthetic personas
+├── processed_data/                            # Cleaned datasets and synthetic demo personas
 ├── scripts/                                   # Data pipelines, migration runners, bulk loaders
-└── supabase/migrations/                       # Version-controlled PostgreSQL DDL scripts
+│   ├── apply_migrations.py                    # Unified PostgreSQL schema migration runner
+│   ├── fast_reliable_ingest.py                # Bulk dataset ingestion utility
+│   ├── index_knowledge_base.py                # Policy embedding and vector store indexer
+│   ├── prepare_data.py                        # Dataset cleaning and schema normalization
+│   ├── select_demo_customers.py               # Demo customer selection and export
+│   └── translations.py                        # Category translation dictionaries
+└── supabase/migrations/                       # PostgreSQL schema definitions and migrations
 ```
 
 ---
@@ -221,8 +225,8 @@ autonomous-ai-customer-support-agent/
 ### Prerequisites
 - Python 3.12+
 - Node.js 18+ and npm
-- Active Supabase project (Free Tier) with `pgvector` enabled
-- Groq Cloud API Key (Free Developer Tier)
+- Active Supabase project with `pgvector` extension enabled
+- Groq Cloud API Key
 
 ### 1. Repository Setup & Environment Configuration
 Clone the repository and prepare the configuration files:
@@ -274,32 +278,32 @@ npm run dev
 
 ---
 
-## 10. Automated Testing & Verification
+## 10. Database Initialization & Data Ingestion (Optional Setup)
 
-The test suite validates database schemas, JWT token lifecycle, customer isolation defense, RAG semantic search, Whisper audio handling, and agent decision-making.
+If setting up a new Supabase database instance from scratch, execute the following setup utilities in sequential order:
 
-### Running the Deterministic Test Suite (Zero Groq Tokens Consumed)
 ```powershell
-# Run core backend test suites (34 tests)
-backend/.venv/Scripts/python.exe -m pytest backend/tests/test_data_validation.py backend/tests/test_database_schema.py backend/tests/test_demo_session.py backend/tests/test_health.py backend/tests/test_rag_pipeline.py backend/tests/test_supabase_connection.py backend/tests/test_whisper_transcription.py -v
+# 1. Apply all database schema migrations and vector extensions
+python scripts/apply_migrations.py
 
-# Run agent deterministic tests (58 tests)
-backend/.venv/Scripts/python.exe -m pytest backend/tests/test_ai_agent.py -v
+# 2. Ingest cleaned e-commerce data (orders, items, products, payments)
+python scripts/fast_reliable_ingest.py
+
+# 3. Index policy markdown documents into pgvector
+python scripts/index_knowledge_base.py
 ```
-**Result: All tests pass cleanly in under 30 seconds with zero API rate-limit impact.**
 
-### Building Frontend Production Bundle
+To create a production build of the frontend:
 ```powershell
 cd frontend
 npm run build
 ```
-**Result: Built cleanly in under 300ms with zero errors.**
 
 ---
 
-## 11. Manual Verification Guide
+## 11. Application Usage & Verification Guide
 
-Visit `http://localhost:5173` to test live functionality:
+Visit `http://localhost:5173` to test the application:
 
 1. **Persona Switching & Isolation:**
    - Select **Customer 00001** (VIP buyer, 17 orders). Ask: *"What did I buy in my latest order?"*.
@@ -312,13 +316,13 @@ Visit `http://localhost:5173` to test live functionality:
    - In Customer 00001, ask: *"What did I buy in my latest order?"*.
    - Confirm agent identifies order `d3582fd5ccccd9cb229a63dfb417c86f` and its item (Construction Tools).
    - Send: *"My delivered order arrived severely damaged and I need a replacement. Email: customer.test@example.com"*.
-   - Agent does **NOT** immediately escalate; it asks whether the issue concerns the order just discussed or a different order.
+   - Agent clarifies whether the issue concerns the order just discussed or a different order.
    - Reply: *"Yes, the order we just discussed"*.
    - Agent creates exactly one real Ticket ID (`ESC-XXXXXXXX`), attaching the contact email and affected order ID `d3582fd5ccccd9cb229a63dfb417c86f`.
-4. **De-Contamination Verification:**
+4. **Context De-Contamination:**
    - In the same thread after ticket creation, ask: *"What payment method was used for my orders?"*.
-   - Agent answers payment methods directly; does **NOT** re-escalate or spawn a second ticket.
-5. **Truthful Brand Defense:**
+   - Agent answers payment methods directly; does not re-escalate or spawn a second ticket.
+5. **Truthful Catalog Grounding:**
    - Ask: *"Do I have Nike shoes or Sony headphones in my orders?"*.
    - Agent truthfully clarifies that no such brands exist in account records without fabricating products.
 6. **Voice Input (Whisper STT):**
@@ -326,11 +330,11 @@ Visit `http://localhost:5173` to test live functionality:
 
 ---
 
-## 12. Known Limitations
+## 12. Operational Considerations
 
-- **Groq Cloud Rate Limits:** Free Developer Tier keys enforce a 200,000 Tokens Per Day (TPD) quota. Heavy automated multi-turn testing should be managed with deterministic unit tests to preserve quota for live evaluation.
-- **Olist Catalog Granularity:** The Olist dataset records products by category classifications, weights, and dimensions rather than consumer brand names. The agent formats categories into clean English (e.g. `Bed Bath & Table`).
-- **Demo Persona Scope:** The current frontend supports 5 pre-configured demo personas (`DEMO_00001` through `DEMO_00005`) mapped from the Olist dataset to showcase different customer journey archetypes.
+- **LLM Token Allocation:** Groq Cloud Developer Tier provides high-throughput inference for real-time customer support sessions. In production environments with high concurrency, standard enterprise tiers or token bucket rate limiting can be configured.
+- **Product Categorization:** The e-commerce catalog organizes items by standardized category classifications, dimensions, and weights. Category names are translated to clean English for user clarity.
+- **Demo Customer Profiles:** The system provides 5 representative customer profiles (`DEMO_00001` through `DEMO_00005`) demonstrating single-order, repeat-order, and multi-item purchase patterns.
 
 ---
 
