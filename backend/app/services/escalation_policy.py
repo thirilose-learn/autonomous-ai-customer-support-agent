@@ -242,30 +242,28 @@ def validate_escalation_readiness(
     if not is_valid_contact:
         return False, None, None, f"Escalation not created: {contact_err}"
 
-    # Fallback model & tool safety: enforce order identification for multi-order customer
-    if customer is not None and getattr(customer, "total_orders", 0) > 1:
-        clean_oid = str(order_id).strip().lower() if order_id and str(order_id).strip().lower() not in ["none", "null"] else None
-        if clean_oid:
-            if hasattr(customer, "customer_unique_id") and customer.customer_unique_id:
-                try:
-                    from app.services.customer_data_service import get_order_for_customer
-                    order_rec = get_order_for_customer(order_id=clean_oid, customer=customer)
-                    if not order_rec:
-                        return (
-                            False,
-                            None,
-                            None,
-                            f"Action Denied: Order '{clean_oid}' does not belong to the current customer ({customer.demo_customer_id})."
-                        )
-                except Exception:
-                    pass
-        elif is_order_related_issue(reason):
-            return (
-                False,
-                None,
-                None,
-                "Action Denied: Multi-order customer must identify or confirm the affected order ID before escalating."
-            )
+    # Fallback model & tool safety: enforce order ownership and multi-order identification
+    clean_oid = str(order_id).strip().lower() if order_id and str(order_id).strip().lower() not in ["none", "null"] else None
+    if clean_oid and customer is not None and hasattr(customer, "customer_unique_id") and customer.customer_unique_id:
+        try:
+            from app.services.customer_data_service import get_order_for_customer
+            order_rec = get_order_for_customer(order_id=clean_oid, customer=customer)
+            if not order_rec:
+                return (
+                    False,
+                    None,
+                    None,
+                    f"Action Denied: Order '{clean_oid}' does not belong to the current customer ({customer.demo_customer_id})."
+                )
+        except Exception:
+            pass
+    elif not clean_oid and customer is not None and getattr(customer, "total_orders", 0) > 1 and is_order_related_issue(reason):
+        return (
+            False,
+            None,
+            None,
+            "Action Denied: Multi-order customer must identify or confirm the affected order ID before escalating."
+        )
 
     return True, email, phone, ""
 
